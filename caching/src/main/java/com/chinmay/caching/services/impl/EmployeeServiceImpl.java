@@ -7,8 +7,9 @@ import com.chinmay.caching.repositories.EmployeeRepository;
 import com.chinmay.caching.services.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.annotations.Cache;
 import org.modelmapper.ModelMapper;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -21,12 +22,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final ModelMapper modelMapper;
+    private final String CACHE_NAME = "employees";
 
     @Override
-    // Caching Ahed ------------------------------------------------------------------------------
+    // Caching Ahead ------------------------------------------------------------------------------
     // THis annotation tells Spring to cache the result of this method using the "employees"
     // cache and the employee ID as the key.
-    @Cacheable(cacheNames = "employees",key = "#id")
+    @Cacheable(cacheNames = CACHE_NAME,key = "#id")
     //---------------------------------------------------------------------------------------------
     public EmployeeDto getEmployeeById(Long id) {
         log.info("Fetching employee with id: {}", id);
@@ -40,6 +42,10 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @CachePut(cacheNames = CACHE_NAME , key = "#result.id")
+    // Here to cache a result we use result keyword in expression language to specify that the result
+    // that is obtained from EmployeeDto is to be cached with the employee ID as the key.
+    // This ensures that when a new employee is created,
     public EmployeeDto createNewEmployee(EmployeeDto employeeDto) {
         log.info("Creating new employee with email: {}", employeeDto.getEmail());
         List<Employee> existingEmployees = employeeRepository.findByEmail(employeeDto.getEmail());
@@ -55,6 +61,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    @CachePut(cacheNames = CACHE_NAME, key = "#id")    // Updating Cache
     public EmployeeDto updateEmployee(Long id, EmployeeDto employeeDto) {
         log.info("Updating employee with id: {}", id);
         Employee employee = employeeRepository.findById(id)
@@ -63,20 +70,31 @@ public class EmployeeServiceImpl implements EmployeeService {
                     return new ResourceNotFoundException("Employee not found with id: " + id);
                 });
 
-        if (!employee.getEmail().equals(employeeDto.getEmail())) {
+        if (employeeDto.getEmail() != null && !employee.getEmail().equals(employeeDto.getEmail())) {
             log.error("Attempted to update email for employee with id: {}", id);
             throw new RuntimeException("The email of the employee cannot be updated");
         }
 
-        modelMapper.map(employeeDto, employee);
+        // Update fields
+        if (employeeDto.getName() != null) {
+            employee.setName(employeeDto.getName());
+        }
+        if (employeeDto.getSalary() != null) {
+            employee.setSalary(employeeDto.getSalary());
+        }
+        
         employee.setId(id);
 
         Employee savedEmployee = employeeRepository.save(employee);
-        log.info("Successfully updated employee with id: {}", id);
-        return modelMapper.map(savedEmployee, EmployeeDto.class);
+        EmployeeDto result = modelMapper.map(savedEmployee, EmployeeDto.class);
+        log.info("Successfully updated employee with id: {}. Cache will be updated with: {}", id, result);
+        return result;
     }
 
     @Override
+    // Deleting specific id cache entry when an employee is deleted from the database.
+    // This ensures that the cache remains consistent with the database.
+    @CacheEvict(cacheNames = CACHE_NAME , key = "#id")
     public void deleteEmployee(Long id) {
         log.info("Deleting employee with id: {}", id);
         boolean exists = employeeRepository.existsById(id);
