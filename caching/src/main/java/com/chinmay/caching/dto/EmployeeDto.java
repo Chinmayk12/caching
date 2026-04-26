@@ -16,4 +16,5 @@ public class EmployeeDto implements Serializable {
     private String email;
     private String name;
     private Long salary;
+    private SalaryAccountDto salaryAccount;
 }

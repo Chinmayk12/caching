@@ -1,9 +1,10 @@
 package com.chinmay.caching.controllers;
 
 import com.chinmay.caching.dto.EmployeeDto;
-import com.chinmay.caching.services.EmployeeService;
+import com.chinmay.caching.dto.SalaryAccountDto;
+import com.chinmay.caching.services.interfaace.EmployeeService;
+import com.chinmay.caching.services.interfaace.SalaryAccountService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final SalaryAccountService salaryAccountService;
 
     @GetMapping("/{id}")
     public ResponseEntity<EmployeeDto> getEmployeeById(@PathVariable Long id) {
@@ -37,5 +39,11 @@ public class EmployeeController {
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/incrementBalance/{id}")
+    public ResponseEntity<SalaryAccountDto> incrementBalance(@PathVariable Long id) {
+        SalaryAccountDto updatedSalaryAccount = salaryAccountService.incrementBalance(id);
+        return ResponseEntity.ok(updatedSalaryAccount);
     }
 }

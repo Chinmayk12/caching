@@ -24,6 +24,6 @@ public class Employee implements Serializable {
 
     private Long salary;
 
-    @ManyToOne
-    private Department department;
+    @OneToOne
+    private SalaryAccount salaryAccount;
 }
